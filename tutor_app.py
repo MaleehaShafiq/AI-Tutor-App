@@ -17,7 +17,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema import StrOutputParser
 # NOTE: The new, recommended way to import Tavily for web searches
-from langchain_tavily import TavilySearchResults
+from langchain_community.tools.tavily_search import TavilySearchResults
 
 # --- 1. PAGE CONFIGURATION ---
 # Set the page title, icon, and layout for a professional look.
@@ -201,4 +201,5 @@ if st.session_state.stage == 'plan_display':
         st.session_state.stage = 'topic_submission'
 
         st.rerun()
+
 
