@@ -156,22 +156,19 @@ if st.session_state.stage == 'plan_display':
     st.markdown(st.session_state.evaluation)
 
     try:
-        # Parse the knowledge level from the evaluation text
+        # This part is safe and can be in a try block
         last_line = st.session_state.evaluation.strip().split('\n')[-1]
         knowledge_level = last_line.split(':')[-1].strip()
 
         st.success(f"Based on your answers, your knowledge level is: **{knowledge_level}**")
-
+        
         with st.spinner("Creating your personalized learning plan with resources..."):
-            # Generate the conceptual plan with search queries
             conceptual_plan = generate_learning_plan(st.session_state.topic, knowledge_level)
 
-            # Display the plan with live search results
             st.subheader("Here is your Personalized Learning Plan!")
-
+            
             modules = conceptual_plan.strip().split('Module: ')[1:]
             for module_text in modules:
-                # Use regex to robustly parse the module components
                 title_match = re.search(r"(.*?)\n", module_text)
                 desc_match = re.search(r"Description: (.*?)\n", module_text)
                 query_match = re.search(r"Search Query: (.*)", module_text, re.DOTALL)
@@ -184,30 +181,26 @@ if st.session_state.stage == 'plan_display':
                     with st.container(border=True):
                         st.markdown(f"#### Module: {title}")
                         st.markdown(f"**Description:** {description}")
-
-                        # Use the search tool to find real-time resources
+                        
+                        # This search part is now safer
                         search_results = search_tool.invoke(query)
-
+                        
                         st.markdown("**Recommended Resources:**")
-if isinstance(search_results, list) and len(search_results) > 0:
-    for result in search_results:
-        # Check if the result is a dictionary with the keys we need
-        if isinstance(result, dict) and 'title' in result and 'url' in result:
-            st.markdown(f"- [{result['title']}]({result['url']})")
-        else:
-            # If the result is just a string, print it directly
-            st.markdown(f"- {result}")
-else:
-    st.markdown("No resources found for this module.")
+                        if isinstance(search_results, list) and len(search_results) > 0:
+                            for result in search_results[:3]: # Show top 3
+                                if isinstance(result, dict) and 'title' in result and 'url' in result:
+                                    st.markdown(f"- [{result['title']}]({result['url']})")
+                                else:
+                                    st.markdown(f"- {result}")
+                        else:
+                            st.markdown("No online resources found for this module.")
 
     except Exception as e:
         st.error(f"An error occurred while generating your plan. Please try again. Error: {e}")
 
     if st.button("Start a New Topic"):
-        # Reset the session state to the beginning
         st.session_state.clear()
         st.session_state.stage = 'topic_submission'
-
         st.rerun()
 
 
