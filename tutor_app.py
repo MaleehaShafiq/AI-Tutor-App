@@ -189,8 +189,16 @@ if st.session_state.stage == 'plan_display':
                         search_results = search_tool.invoke(query)
 
                         st.markdown("**Recommended Resources:**")
-                        for result in search_results:
-                            st.markdown(f"- [{result['title']}]({result['url']})")
+if isinstance(search_results, list) and len(search_results) > 0:
+    for result in search_results:
+        # Check if the result is a dictionary with the keys we need
+        if isinstance(result, dict) and 'title' in result and 'url' in result:
+            st.markdown(f"- [{result['title']}]({result['url']})")
+        else:
+            # If the result is just a string, print it directly
+            st.markdown(f"- {result}")
+else:
+    st.markdown("No resources found for this module.")
 
     except Exception as e:
         st.error(f"An error occurred while generating your plan. Please try again. Error: {e}")
@@ -201,5 +209,6 @@ if st.session_state.stage == 'plan_display':
         st.session_state.stage = 'topic_submission'
 
         st.rerun()
+
 
 
