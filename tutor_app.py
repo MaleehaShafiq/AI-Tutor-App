@@ -75,12 +75,14 @@ quiz_parser = PydanticOutputParser(pydantic_object=Quiz)
 
 # --- 4. CORE LOGIC FUNCTIONS ---
 def generate_initial_assessment(topic):
-    assessment_prompt = ChatPromptTemplate.from_template("Generate a 3-question diagnostic quiz for '{topic}'.")
+    assessment_prompt = ChatPromptTemplate.from_template(
+        "Generate a 3-question diagnostic quiz for {topic}."
+    )
     return (assessment_prompt | llm | StrOutputParser()).invoke({"topic": topic})
 
 def evaluate_answers(questions, answers):
     evaluation_prompt = ChatPromptTemplate.from_template(
-        "You are an AI Tutor. Evaluate these answers: '{answers}' for these questions: '{questions}'. Determine the user's level as [Beginner, Intermediate, Advanced]. Format with 'Feedback' and 'Knowledge Level' sections."
+        "You are an AI Tutor. Evaluate these answers: {answers} for these questions: {questions}. Determine the user's level as [Beginner, Intermediate, Advanced]. Format with 'Feedback' and 'Knowledge Level' sections."
     )
     return (evaluation_prompt | llm | StrOutputParser()).invoke({"questions": questions, "answers": answers})
 
@@ -236,6 +238,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
 
