@@ -184,8 +184,12 @@ if st.session_state.stage == 'plan_display':
                 st.markdown(feedback_text)
             
             last_line = st.session_state.evaluation.strip().split('\n')[-1]
-            knowledge_level = last_line.split(':')[-1].strip()
-            st.success(f"Based on your answers, your knowledge level is: **{knowledge_level}**")
+            knowledge_level = "Beginner" 
+# Search for the correct line in the evaluation text
+for line in st.session_state.evaluation.strip().split('\n'):
+    if line.startswith("Knowledge Level:"):
+        knowledge_level = line.split(':')[-1].strip()
+        break # Stop searching once we've found it
         except Exception as e:
              st.error("Could not parse evaluation.")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -236,4 +240,5 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
