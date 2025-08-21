@@ -81,13 +81,29 @@ def generate_learning_plan(topic, knowledge_level):
     plan_chain = plan_prompt | llm | StrOutputParser()
     return plan_chain.invoke({"topic": topic, "knowledge_level": knowledge_level})
 
+# --- REPLACE the old generate_module_quiz function with this one ---
 def generate_module_quiz(module_title, module_description):
-    """Generates a short quiz for a specific learning module."""
+    """Generates a quiz for a module AND knows the correct answer."""
     quiz_prompt = ChatPromptTemplate.from_template(
         """
-        You are an AI Learning Tutor. Create a short, 2-question quiz to test understanding of a learning module.
-        The module is: Title: {module_title} ; Description: {module_description}
-        Generate two questions: 1. A multiple-choice question. 2. A short-answer question. Format the output clearly.
+        You are an AI Learning Tutor. Create a short, 2-question quiz for the learning module below.
+        Module Title: {module_title}
+        Module Description: {module_description}
+
+        Generate two questions:
+        1. A multiple-choice question with 4 options (a, b, c, d).
+        2. A short-answer question that requires a brief explanation.
+
+        **CRITICAL**: After the quiz, on a new line, provide the correct answer for the multiple-choice question in the format:
+        Correct Answer: [Correct option letter]
+        
+        Example:
+        1. Multiple Choice: ...
+           a) ...
+           b) ...
+        2. Short Answer: ...
+        
+        Correct Answer: b
         """
     )
     quiz_chain = quiz_prompt | llm | StrOutputParser()
@@ -202,6 +218,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred while generating your plan. Please try again. Error: {e}")
+
 
 
 
