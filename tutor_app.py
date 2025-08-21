@@ -16,8 +16,53 @@ from pydantic import BaseModel, Field
 from typing import List
 from langchain.output_parsers import PydanticOutputParser
 
+
+
+
+# --- Custom CSS for Styling ---
+st.markdown("""
+<style>
+    /* Center the title */
+    .st-emotion-cache-10trblm {
+        text-align: center;
+    }
+    
+    /* Style for the user's answers (green) */
+    .user-answer {
+        background-color: #2F4F4F; /* Dark Slate Gray - a nice dark green */
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #3E5F5F;
+    }
+    
+    /* Style for the tutor's responses (blue) */
+    .tutor-response {
+        background-color: #2C3E50; /* Dark Slate Blue */
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #3A506B;
+    }
+    
+    /* Simple popping/jumping animation */
+    @keyframes pop-in {
+        0% { transform: scale(0.9); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .pop-in-animation {
+        animation: pop-in 0.5s ease-out forwards;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- 1. PAGE CONFIGURATION ---
-st.set_page_config(page_title="Personalized AI Learning Tutor", page_icon="🎓", layout="wide")
+st.set_page_config(
+    page_title="Personalized AI Learning Tutor",
+    page_icon="🎓",
+    layout="wide",
+    initial_sidebar_state="expanded" # Keep the sidebar open by default
+)
 
 # --- 2. API KEY SETUP ---
 try:
@@ -191,3 +236,4 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
