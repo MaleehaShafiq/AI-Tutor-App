@@ -203,7 +203,6 @@ if st.session_state.stage == 'assessment_answering':
             st.warning("Please provide your answers before submitting.")
 
 # --- STAGE 3: Display Plan & Interactive Quizzes
-# --- STAGE 3: Display Plan & Interactive Quizzes (3-MCQ VERSION) ---
 if st.session_state.stage == 'plan_display':
     st.subheader("Here is your evaluation:")
     
@@ -217,14 +216,12 @@ if st.session_state.stage == 'plan_display':
         st.success(f"Based on your answers, your knowledge level is: **{knowledge_level}**")
         
         # --- Display Total Score ---
-        total_score = 0
-        total_possible = 0
-        for i in range(3): # Assuming 3 modules
+        total_score, total_possible = 0, 0
+        for i in range(3):
             if f'quiz_score_for_module_{i}' in st.session_state:
                 score, possible = st.session_state[f'quiz_score_for_module_{i}']
                 total_score += score
                 total_possible += possible
-        
         if total_possible > 0:
             st.metric(label="Your Total Score", value=f"{total_score} / {total_possible}")
 
@@ -242,14 +239,12 @@ if st.session_state.stage == 'plan_display':
             query_match = re.search(r"Search Query: (.*)", module_text, re.DOTALL)
 
             if title_match and desc_match and query_match:
-                title = title_match.group(1).strip()
-                description = desc_match.group(1).strip()
-                query = query_match.group(1).strip()
+                title, description, query = title_match.group(1).strip(), desc_match.group(1).strip(), query_match.group(1).strip()
 
                 with st.container(border=True):
                     st.markdown(f"#### Module {i+1}: {title}")
                     st.markdown(f"**Description:** {description}")
-                    # ... (Resource display logic remains the same) ...
+                    # ... (Resource display logic) ...
                     st.markdown("**Recommended Resources:**")
                     search_results = search_tool.invoke(query)
                     if isinstance(search_results, list) and len(search_results) > 0:
@@ -257,7 +252,7 @@ if st.session_state.stage == 'plan_display':
                             if isinstance(result, dict) and 'title' in result and 'url' in result:
                                 st.markdown(f"- [{result['title']}]({result['url']})")
                     else:
-                        st.markdown("No online resources found for this module.")
+                        st.markdown("No online resources found.")
 
                     st.divider()
                     if st.button(f"Quiz me on Module {i+1}", key=f"quiz_btn_{i}"):
@@ -267,36 +262,46 @@ if st.session_state.stage == 'plan_display':
                     
                     if f'quiz_for_module_{i}' in st.session_state:
                         quiz_text = st.session_state[f'quiz_for_module_{i}']
-                        quiz_parts = quiz_text.split("Correct Answers:")
-                        quiz_questions_text = quiz_parts[0].strip()
-                        correct_answers_str = quiz_parts[1].strip() if len(quiz_parts) > 1 else ""
-                        correct_answers = [ans.strip() for ans in correct_answers_str.split(',')]
-                        
-                        st.markdown("---")
-                        
-                        # Use Regex to split the text into individual questions
-                        individual_questions = re.split(r'\n\d\.\sMultiple Choice:', quiz_questions_text)[1:]
-
-                        with st.form(key=f'quiz_form_{i}'):
-                            user_answers = []
-                            for q_idx, q_text in enumerate(individual_questions):
-                                st.markdown(f"**Question {q_idx+1}:** {q_text.split('a)')[0].strip()}")
-                                options = re.findall(r'^[a-d]\) (.*)', q_text, re.MULTILINE)
-                                if options:
-                                    user_choice = st.radio("Select an answer:", options, key=f"mc_{i}_{q_idx}", index=None, label_visibility="collapsed")
-                                    user_answers.append(user_choice)
+                        # --- NEW SAFETY CHECK IS HERE ---
+                        try:
+                            quiz_parts = quiz_text.split("Correct Answers:")
+                            quiz_questions_text = quiz_parts[0].strip()
+                            correct_answers_str = quiz_parts[1].strip()
+                            correct_answers = [ans.strip() for ans in correct_answers_str.split(',')]
                             
-                            submitted = st.form_submit_button("Submit Quiz")
+                            st.markdown("---")
+                            individual_questions = re.split(r'\n\d+\.\sMultiple Choice:', quiz_questions_text)[1:]
+                            
+                            # More safety: check if we actually parsed questions
+                            if len(individual_questions) != 3:
+                                raise ValueError("AI did not generate 3 questions.")
 
-                            if submitted:
-                                with st.spinner("Grading your answers..."):
-                                    evaluation = evaluate_quiz_answers(quiz_questions_text, user_answers, correct_answers)
-                                    st.session_state[f'quiz_feedback_for_module_{i}'] = evaluation
-                                    
-                                    score_line = evaluation.strip().split('\n')[-1]
-                                    score_parts = score_line.split(': ')[-1].split('/')
-                                    st.session_state[f'quiz_score_for_module_{i}'] = (int(score_parts[0]), 3)
-                                    st.rerun()
+                            with st.form(key=f'quiz_form_{i}'):
+                                user_answers = []
+                                for q_idx, q_text in enumerate(individual_questions):
+                                    st.markdown(f"**Question {q_idx+1}:** {q_text.split('a)')[0].strip()}")
+                                    options = re.findall(r'^[a-d]\) (.*)', q_text, re.MULTILINE)
+                                    if options:
+                                        user_choice = st.radio("Select an answer:", options, key=f"mc_{i}_{q_idx}", index=None, label_visibility="collapsed")
+                                        user_answers.append(user_choice)
+                                
+                                submitted = st.form_submit_button("Submit Quiz")
+
+                                if submitted:
+                                    with st.spinner("Grading your answers..."):
+                                        evaluation = evaluate_quiz_answers(quiz_questions_text, user_answers, correct_answers)
+                                        st.session_state[f'quiz_feedback_for_module_{i}'] = evaluation
+                                        
+                                        score_line = evaluation.strip().split('\n')[-1]
+                                        score_parts = score_line.split(': ')[-1].split('/')
+                                        st.session_state[f'quiz_score_for_module_{i}'] = (int(score_parts[0]), 3)
+                                        st.rerun()
+                        except (IndexError, ValueError) as e:
+                            st.error("Sorry, the AI generated an invalid quiz format. Please click the 'Quiz me' button again.")
+                            # Clean up the bad quiz data
+                            if f'quiz_for_module_{i}' in st.session_state:
+                                del st.session_state[f'quiz_for_module_{i}']
+                        # --- END OF SAFETY CHECK ---
                     
                     if f'quiz_feedback_for_module_{i}' in st.session_state:
                         st.markdown("---")
@@ -305,6 +310,3 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
-
-
-
