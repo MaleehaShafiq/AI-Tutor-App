@@ -81,66 +81,74 @@ def generate_learning_plan(topic, knowledge_level):
     plan_chain = plan_prompt | llm | StrOutputParser()
     return plan_chain.invoke({"topic": topic, "knowledge_level": knowledge_level})
 
+# --- REPLACE the old generate_module_quiz function with this one ---
 def generate_module_quiz(module_title, module_description):
-    """Generates a quiz for a module AND knows the correct answer."""
+    """Generates a 3-MCQ quiz for a module AND knows the correct answers."""
     quiz_prompt = ChatPromptTemplate.from_template(
         """
-        You are an AI Learning Tutor. Create a short, 2-question quiz for the learning module below.
+        You are an AI Learning Tutor. Create a quiz with exactly 3 multiple-choice questions for the learning module below.
         Module Title: {module_title}
         Module Description: {module_description}
 
-        Generate two questions:
-        1. A multiple-choice question with 4 options (a, b, c, d).
-        2. A short-answer question that requires a brief explanation.
+        **Instructions:**
+        1.  Each question must have four options: a), b), c), and d).
+        2.  The questions should test the key concepts in the module description.
 
-        **CRITICAL**: After the quiz, on a new line, provide the correct answer for the multiple-choice question in the format:
-        Correct Answer: [Correct option letter]
+        **CRITICAL**: After the 3 questions, on a new line, you MUST provide the correct answers in a comma-separated list.
+        The format MUST be:
+        Correct Answers: [ans1, ans2, ans3]
         
-        Example:
-        1. Multiple Choice: ...
-           a) ...
-           b) ...
-        2. Short Answer: ...
+        **EXAMPLE of a PERFECT response:**
+        1. Multiple Choice: What is the capital of France?
+           a) Berlin
+           b) Madrid
+           c) Paris
+           d) Rome
         
-        Correct Answer: b
+        2. Multiple Choice: Which number is a prime number?
+           a) 4
+           b) 7
+           c) 9
+           d) 12
+
+        3. Multiple Choice: What is H2O?
+           a) Salt
+           b) Sugar
+           c) Water
+           d) Air
+
+        Correct Answers: c, b, c
         """
     )
     quiz_chain = quiz_prompt | llm | StrOutputParser()
     return quiz_chain.invoke({"module_title": module_title, "module_description": module_description})
 
-def evaluate_quiz_answers(quiz_questions, user_mc_answer, user_short_answer, correct_mc_answer):
-    """Evaluates the user's quiz submission and provides a score."""
+def evaluate_quiz_answers(quiz_questions, user_mc_answers, correct_mc_answers):
+    """Evaluates the user's 3-MCQ submission and provides a score."""
     grader_prompt = ChatPromptTemplate.from_template(
         """
-        You are an AI Quiz Grader. Evaluate the user's answers based on the quiz questions and the correct answer.
+        You are an AI Quiz Grader. Evaluate the user's answers based on the quiz questions and the correct answers.
 
         **Quiz Questions:**
         {quiz_questions}
 
-        **Correct Multiple-Choice Answer:** {correct_mc_answer}
+        **Correct Answers:** {correct_mc_answers}
 
         ---
-        **User's Submitted Answers:**
-        - Multiple-Choice Answer: {user_mc_answer}
-        - Short-Answer: {user_short_answer}
+        **User's Submitted Answers:** {user_mc_answers}
         ---
 
         Please perform the following:
-        1.  Provide brief, constructive feedback on both answers. Explain why the multiple-choice answer was right or wrong.
+        1.  For each question, briefly provide constructive feedback. Explain why the user's choice was right or wrong based on the correct answer.
         2.  On a new line at the very end, provide a numerical score in the format:
-        Score: [Number of correct answers]/2
-
-        Example:
-        Feedback: Great job on the multiple-choice question! For the short answer...
-        Score: 1/2
+        Score: [Number of correct answers]/3
         """
     )
     grader_chain = grader_prompt | llm | StrOutputParser()
     return grader_chain.invoke({
         "quiz_questions": quiz_questions,
-        "user_mc_answer": user_mc_answer,
-        "user_short_answer": user_short_answer,
-        "correct_mc_answer": correct_mc_answer
+        "user_mc_answers": user_mc_answers,
+        "correct_mc_answers": correct_mc_answers
     })
 
 # ==============================================================================
@@ -195,6 +203,7 @@ if st.session_state.stage == 'assessment_answering':
             st.warning("Please provide your answers before submitting.")
 
 # --- STAGE 3: Display Plan & Interactive Quizzes
+# --- STAGE 3: Display Plan & Interactive Quizzes (3-MCQ VERSION) ---
 if st.session_state.stage == 'plan_display':
     st.subheader("Here is your evaluation:")
     
@@ -210,8 +219,7 @@ if st.session_state.stage == 'plan_display':
         # --- Display Total Score ---
         total_score = 0
         total_possible = 0
-        # This loop calculates and displays the running total score
-        for i in range(3): # Assuming 3 modules, adjust if you change the plan length
+        for i in range(3): # Assuming 3 modules
             if f'quiz_score_for_module_{i}' in st.session_state:
                 score, possible = st.session_state[f'quiz_score_for_module_{i}']
                 total_score += score
@@ -220,7 +228,6 @@ if st.session_state.stage == 'plan_display':
         if total_possible > 0:
             st.metric(label="Your Total Score", value=f"{total_score} / {total_possible}")
 
-        # --- Generate and Display Plan ---
         if 'plan' not in st.session_state:
              with st.spinner("Creating your personalized learning plan..."):
                 st.session_state.plan = generate_learning_plan(st.session_state.topic, knowledge_level)
@@ -229,6 +236,7 @@ if st.session_state.stage == 'plan_display':
         
         modules = st.session_state.plan.strip().split('Module: ')[1:]
         for i, module_text in enumerate(modules):
+            # ... (Parsing logic remains the same)
             title_match = re.search(r"(.*?)\n", module_text)
             desc_match = re.search(r"Description: (.*?)\n", module_text)
             query_match = re.search(r"Search Query: (.*)", module_text, re.DOTALL)
@@ -241,8 +249,7 @@ if st.session_state.stage == 'plan_display':
                 with st.container(border=True):
                     st.markdown(f"#### Module {i+1}: {title}")
                     st.markdown(f"**Description:** {description}")
-                    
-                    # --- FIX: ADDING THE RESOURCE LINKS BACK IN ---
+                    # ... (Resource display logic remains the same) ...
                     st.markdown("**Recommended Resources:**")
                     search_results = search_tool.invoke(query)
                     if isinstance(search_results, list) and len(search_results) > 0:
@@ -251,7 +258,6 @@ if st.session_state.stage == 'plan_display':
                                 st.markdown(f"- [{result['title']}]({result['url']})")
                     else:
                         st.markdown("No online resources found for this module.")
-                    # --- END OF FIX ---
 
                     st.divider()
                     if st.button(f"Quiz me on Module {i+1}", key=f"quiz_btn_{i}"):
@@ -261,38 +267,35 @@ if st.session_state.stage == 'plan_display':
                     
                     if f'quiz_for_module_{i}' in st.session_state:
                         quiz_text = st.session_state[f'quiz_for_module_{i}']
-                        quiz_parts = quiz_text.split("Correct Answer:")
-                        quiz_questions = quiz_parts[0].strip()
-                        correct_answer = quiz_parts[1].strip() if len(quiz_parts) > 1 else 'N/A'
+                        quiz_parts = quiz_text.split("Correct Answers:")
+                        quiz_questions_text = quiz_parts[0].strip()
+                        correct_answers_str = quiz_parts[1].strip() if len(quiz_parts) > 1 else ""
+                        correct_answers = [ans.strip() for ans in correct_answers_str.split(',')]
                         
                         st.markdown("---")
-                        st.markdown(quiz_questions.split("1. Multiple Choice:")[0].strip()) # Display instructions
+                        
+                        # Use Regex to split the text into individual questions
+                        individual_questions = re.split(r'\n\d\.\sMultiple Choice:', quiz_questions_text)[1:]
 
-                        # --- UI IMPROVEMENT: Use st.radio for multiple choice ---
                         with st.form(key=f'quiz_form_{i}'):
-                            mc_question_body = quiz_questions.split("1. Multiple Choice:")[1].split("2. Short Answer:")[0]
-                            # Use Regex to find all options (a, b, c, d)
-                            mc_options = re.findall(r'^[a-d]\) (.*)', mc_question_body, re.MULTILINE)
-                            
-                            st.markdown("**1. Multiple Choice:**")
-                            user_mc_answer = st.radio("Select the best option:", mc_options, key=f"mc_{i}", index=None)
-                            
-                            st.markdown("**2. Short Answer:**")
-                            short_answer_question = quiz_questions.split("2. Short Answer:")[1].strip()
-                            st.markdown(short_answer_question)
-                            user_short_answer = st.text_area("Your Answer:", key=f"sa_{i}", height=100)
+                            user_answers = []
+                            for q_idx, q_text in enumerate(individual_questions):
+                                st.markdown(f"**Question {q_idx+1}:** {q_text.split('a)')[0].strip()}")
+                                options = re.findall(r'^[a-d]\) (.*)', q_text, re.MULTILINE)
+                                if options:
+                                    user_choice = st.radio("Select an answer:", options, key=f"mc_{i}_{q_idx}", index=None, label_visibility="collapsed")
+                                    user_answers.append(user_choice)
                             
                             submitted = st.form_submit_button("Submit Quiz")
 
                             if submitted:
-                                # Process submission logic...
                                 with st.spinner("Grading your answers..."):
-                                    evaluation = evaluate_quiz_answers(quiz_questions, user_mc_answer, user_short_answer, correct_answer)
+                                    evaluation = evaluate_quiz_answers(quiz_questions_text, user_answers, correct_answers)
                                     st.session_state[f'quiz_feedback_for_module_{i}'] = evaluation
-
+                                    
                                     score_line = evaluation.strip().split('\n')[-1]
                                     score_parts = score_line.split(': ')[-1].split('/')
-                                    st.session_state[f'quiz_score_for_module_{i}'] = (int(score_parts[0]), int(score_parts[1]))
+                                    st.session_state[f'quiz_score_for_module_{i}'] = (int(score_parts[0]), 3)
                                     st.rerun()
                     
                     if f'quiz_feedback_for_module_{i}' in st.session_state:
@@ -302,8 +305,6 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
-
-
 
 
 
