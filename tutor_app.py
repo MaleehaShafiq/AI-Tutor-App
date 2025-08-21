@@ -16,38 +16,21 @@ from pydantic import BaseModel, Field
 from typing import List
 from langchain.output_parsers import PydanticOutputParser
 
-
-
-
 # --- Custom CSS for Styling ---
 st.markdown("""
 <style>
-    /* Center the title */
-    .st-emotion-cache-10trblm {
+    h1 {
         text-align: center;
     }
-    
-    /* Style for the user's answers (green) */
-    .user-answer {
-        background-color: #2F4F4F; /* Dark Slate Gray - a nice dark green */
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid #3E5F5F;
-    }
-    
-    /* Style for the tutor's responses (blue) */
     .tutor-response {
-        background-color: #2C3E50; /* Dark Slate Blue */
+        background-color: #2C3E50;
         border-radius: 10px;
         padding: 15px;
         margin-bottom: 20px;
         border: 1px solid #3A506B;
     }
-    
-    /* Simple popping/jumping animation */
     @keyframes pop-in {
-        0% { transform: scale(0.9); opacity: 0; }
+        0% { transform: scale(0.95); opacity: 0; }
         100% { transform: scale(1); opacity: 1; }
     }
     .pop-in-animation {
@@ -57,19 +40,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 1. PAGE CONFIGURATION ---
-st.set_page_config(
-    page_title="Personalized AI Learning Tutor",
-    page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded" # Keep the sidebar open by default
-)
+st.set_page_config(page_title="Personalized AI Learning Tutor", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 
 # --- 2. API KEY SETUP ---
 try:
     os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
     os.environ["TAVILY_API_KEY"] = st.secrets["TAVILY_API_KEY"]
-except FileNotFoundError:
-    st.error("Secrets file not found. For local development, please create a .streamlit/secrets.toml file.")
+except (FileNotFoundError, KeyError):
+    st.error("Secrets file not found or keys are missing. Please create a .streamlit/secrets.toml file for local development.")
     st.stop()
 
 # --- 3. AI & TOOL INITIALIZATION ---
@@ -98,47 +76,36 @@ quiz_parser = PydanticOutputParser(pydantic_object=Quiz)
 # --- 4. CORE LOGIC FUNCTIONS ---
 def generate_initial_assessment(topic):
     assessment_prompt = ChatPromptTemplate.from_template("Generate a 3-question diagnostic quiz for '{topic}'.")
-    assessment_chain = assessment_prompt | llm | StrOutputParser()
-    return assessment_chain.invoke({"topic": topic})
+    return (assessment_prompt | llm | StrOutputParser()).invoke({"topic": topic})
 
 def evaluate_answers(questions, answers):
     evaluation_prompt = ChatPromptTemplate.from_template(
-        "You are an expert AI Tutor. Evaluate these answers: {answers} for these questions: {questions}. Determine the user's level as [Beginner, Intermediate, Advanced]. Format with 'Feedback' and 'Knowledge Level' sections."
+        "You are an AI Tutor. Evaluate these answers: '{answers}' for these questions: '{questions}'. Determine the user's level as [Beginner, Intermediate, Advanced]. Format with 'Feedback' and 'Knowledge Level' sections."
     )
-    evaluation_chain = evaluation_prompt | llm | StrOutputParser()
-    return evaluation_chain.invoke({"questions": questions, "answers": answers})
+    return (evaluation_prompt | llm | StrOutputParser()).invoke({"questions": questions, "answers": answers})
 
 def generate_learning_plan(topic, knowledge_level):
     plan_prompt = ChatPromptTemplate.from_template(
-        "Create a 3-module learning plan for a {knowledge_level} user on the topic of {topic}. For each module, provide a 'Module' title, 'Description', and a 'Search Query'."
+        "Create a 3-module learning plan for a {knowledge_level} user on {topic}. For each module, provide a 'Module' title, 'Description', and a 'Search Query'."
     )
-    plan_chain = plan_prompt | llm | StrOutputParser()
-    return plan_chain.invoke({"topic": topic, "knowledge_level": knowledge_level})
+    return (plan_prompt | llm | StrOutputParser()).invoke({"topic": topic, "knowledge_level": knowledge_level})
 
 def generate_module_quiz(module_title, module_description):
     quiz_prompt = ChatPromptTemplate.from_template(
-        """
-        Create a quiz with exactly 3 multiple-choice questions for the module: '{module_title}' - {module_description}.
-        Each question must have four options.
-        {format_instructions}
-        """,
+        "Create a quiz with exactly 3 MCQs for the module: '{module_title}' - {module_description}. Each question needs four options. {format_instructions}",
         partial_variables={"format_instructions": quiz_parser.get_format_instructions()}
     )
-    quiz_chain = quiz_prompt | llm | quiz_parser
-    return quiz_chain.invoke({"module_title": module_title, "module_description": module_description})
+    return (quiz_prompt | llm | quiz_parser).invoke({"module_title": module_title, "module_description": module_description})
 
 # ==============================================================================
-# --- 5. STREAMLIT APP LAYOUT AND LOGIC (FINAL VERSION) ---
+# --- 5. STREAMLIT APP LAYOUT AND LOGIC ---
 # ==============================================================================
 st.title("🎓 Personalized AI Learning Tutor")
 st.markdown("Welcome! I'm here to help you master any topic. Let's start by figuring out what you already know.")
 
 with st.sidebar:
     st.header("About")
-    st.markdown("""
-    This is a personalized AI Learning Tutor built with Google Gemini, LangChain, and Streamlit.
-    It assesses your knowledge and creates a tailored learning plan with resources and quizzes.
-    """)
+    st.markdown("This is a personalized AI Learning Tutor...")
     st.divider()
     if st.button("Start a New Topic"):
         for key in st.session_state.keys():
@@ -170,29 +137,27 @@ if st.session_state.stage == 'assessment_answering':
             st.session_state.stage = 'plan_display'
             st.rerun()
 
-# --- STAGE 3: Display Plan & Interactive Quizzes (STYLED VERSION) ---
 if st.session_state.stage == 'plan_display':
+    st.markdown('<div class="tutor-response pop-in-animation">', unsafe_allow_html=True)
+    st.subheader("Here is your evaluation:")
     
-    # --- Tutor's Evaluation in a Blue Box ---
-    with st.container():
-        st.markdown('<div class="tutor-response pop-in-animation">', unsafe_allow_html=True)
-        st.subheader("Here is your evaluation:")
+    try:
+        feedback_text = st.session_state.evaluation.split("Knowledge Level")[0]
+        with st.expander("Click to see detailed feedback"):
+            st.markdown(feedback_text)
         
-        try:
-            feedback_text = st.session_state.evaluation.split("Knowledge Level")[0]
-            with st.expander("Click to see detailed feedback on your answers"):
-                st.markdown(feedback_text)
-            
-            last_line = st.session_state.evaluation.strip().split('\n')[-1]
-            knowledge_level = "Beginner" 
-# Search for the correct line in the evaluation text
-for line in st.session_state.evaluation.strip().split('\n'):
-    if line.startswith("Knowledge Level:"):
-        knowledge_level = line.split(':')[-1].strip()
-        break # Stop searching once we've found it
-        except Exception as e:
-             st.error("Could not parse evaluation.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        # --- ROBUST KNOWLEDGE LEVEL PARSING ---
+        knowledge_level = "Beginner"  # Default value
+        for line in st.session_state.evaluation.strip().split('\n'):
+            if line.startswith("Knowledge Level:"):
+                knowledge_level = line.split(':')[-1].strip()
+                break
+        st.success(f"Based on your answers, your knowledge level is: **{knowledge_level}**")
+        # --- END OF ROBUST PARSING ---
+
+    except Exception as e:
+        st.error(f"Could not parse evaluation: {e}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
     # --- Learning Plan Generation ---
@@ -240,5 +205,6 @@ for line in st.session_state.evaluation.strip().split('\n'):
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
