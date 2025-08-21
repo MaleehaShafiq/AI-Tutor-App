@@ -210,14 +210,15 @@ if st.session_state.stage == 'plan_display':
         # --- Display Total Score ---
         total_score = 0
         total_possible = 0
-        for i in range(3): # Assuming 3 modules
+        # This loop calculates and displays the running total score
+        for i in range(3): # Assuming 3 modules, adjust if you change the plan length
             if f'quiz_score_for_module_{i}' in st.session_state:
                 score, possible = st.session_state[f'quiz_score_for_module_{i}']
                 total_score += score
                 total_possible += possible
         
         if total_possible > 0:
-            st.metric(label="Your Total Score", value=f"{total_score}/{total_possible}")
+            st.metric(label="Your Total Score", value=f"{total_score} / {total_possible}")
 
         # --- Generate and Display Plan ---
         if 'plan' not in st.session_state:
@@ -228,7 +229,6 @@ if st.session_state.stage == 'plan_display':
         
         modules = st.session_state.plan.strip().split('Module: ')[1:]
         for i, module_text in enumerate(modules):
-            # ... (Parsing logic remains the same)
             title_match = re.search(r"(.*?)\n", module_text)
             desc_match = re.search(r"Description: (.*?)\n", module_text)
             query_match = re.search(r"Search Query: (.*)", module_text, re.DOTALL)
@@ -236,14 +236,24 @@ if st.session_state.stage == 'plan_display':
             if title_match and desc_match and query_match:
                 title = title_match.group(1).strip()
                 description = desc_match.group(1).strip()
+                query = query_match.group(1).strip()
 
                 with st.container(border=True):
                     st.markdown(f"#### Module {i+1}: {title}")
                     st.markdown(f"**Description:** {description}")
-                    # ... (Resource display logic remains the same) ...
+                    
+                    # --- FIX: ADDING THE RESOURCE LINKS BACK IN ---
+                    st.markdown("**Recommended Resources:**")
+                    search_results = search_tool.invoke(query)
+                    if isinstance(search_results, list) and len(search_results) > 0:
+                        for result in search_results:
+                            if isinstance(result, dict) and 'title' in result and 'url' in result:
+                                st.markdown(f"- [{result['title']}]({result['url']})")
+                    else:
+                        st.markdown("No online resources found for this module.")
+                    # --- END OF FIX ---
 
                     st.divider()
-                    # --- UPGRADED QUIZ LOGIC ---
                     if st.button(f"Quiz me on Module {i+1}", key=f"quiz_btn_{i}"):
                         with st.spinner(f"Generating a quiz for {title}..."):
                             quiz_text = generate_module_quiz(title, description)
@@ -251,33 +261,39 @@ if st.session_state.stage == 'plan_display':
                     
                     if f'quiz_for_module_{i}' in st.session_state:
                         quiz_text = st.session_state[f'quiz_for_module_{i}']
-                        # Extract the correct answer and the questions
                         quiz_parts = quiz_text.split("Correct Answer:")
                         quiz_questions = quiz_parts[0].strip()
                         correct_answer = quiz_parts[1].strip() if len(quiz_parts) > 1 else 'N/A'
                         
                         st.markdown("---")
-                        st.markdown(quiz_questions)
+                        st.markdown(quiz_questions.split("1. Multiple Choice:")[0].strip()) # Display instructions
 
-                        # Create a form for quiz submission
+                        # --- UI IMPROVEMENT: Use st.radio for multiple choice ---
                         with st.form(key=f'quiz_form_{i}'):
-                            mc_options = re.findall(r'^[a-d]\) (.*)', quiz_questions, re.MULTILINE)
-                            user_mc_answer = st.radio("Your Answer (Multiple Choice):", mc_options, key=f"mc_{i}", index=None)
-                            user_short_answer = st.text_area("Your Answer (Short Answer):", key=f"sa_{i}")
+                            mc_question_body = quiz_questions.split("1. Multiple Choice:")[1].split("2. Short Answer:")[0]
+                            # Use Regex to find all options (a, b, c, d)
+                            mc_options = re.findall(r'^[a-d]\) (.*)', mc_question_body, re.MULTILINE)
+                            
+                            st.markdown("**1. Multiple Choice:**")
+                            user_mc_answer = st.radio("Select the best option:", mc_options, key=f"mc_{i}", index=None)
+                            
+                            st.markdown("**2. Short Answer:**")
+                            short_answer_question = quiz_questions.split("2. Short Answer:")[1].strip()
+                            st.markdown(short_answer_question)
+                            user_short_answer = st.text_area("Your Answer:", key=f"sa_{i}", height=100)
+                            
                             submitted = st.form_submit_button("Submit Quiz")
 
                             if submitted:
+                                # Process submission logic...
                                 with st.spinner("Grading your answers..."):
                                     evaluation = evaluate_quiz_answers(quiz_questions, user_mc_answer, user_short_answer, correct_answer)
                                     st.session_state[f'quiz_feedback_for_module_{i}'] = evaluation
 
-                                    # Parse and store the score
                                     score_line = evaluation.strip().split('\n')[-1]
                                     score_parts = score_line.split(': ')[-1].split('/')
-                                    score = int(score_parts[0])
-                                    possible = int(score_parts[1])
-                                    st.session_state[f'quiz_score_for_module_{i}'] = (score, possible)
-                                    st.rerun() # Rerun to update total score display
+                                    st.session_state[f'quiz_score_for_module_{i}'] = (int(score_parts[0]), int(score_parts[1]))
+                                    st.rerun()
                     
                     if f'quiz_feedback_for_module_{i}' in st.session_state:
                         st.markdown("---")
