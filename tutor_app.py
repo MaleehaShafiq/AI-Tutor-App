@@ -81,11 +81,36 @@ def generate_initial_assessment(topic):
     return (assessment_prompt | llm | StrOutputParser()).invoke({"topic": topic})
 
 def evaluate_answers(questions, answers):
+    """Evaluates user's answers and determines their knowledge level with a robust prompt."""
     evaluation_prompt = ChatPromptTemplate.from_template(
-        "You are an AI Tutor. Evaluate these answers: {answers} for these questions: {questions}. Determine the user's level as [Beginner, Intermediate, Advanced]. Format with 'Feedback' and 'Knowledge Level' sections."
+        """
+        You are an expert AI Tutor. Your task is to evaluate a user's answers to a diagnostic quiz.
+        Be precise and objective.
+
+        **Quiz Questions:**
+        ---
+        {questions}
+        ---
+
+        **User's Submitted Answers:**
+        ---
+        {answers}
+        ---
+
+        **Instructions:**
+        1.  Carefully analyze the user's answers. Acknowledge and state clearly if any questions were skipped.
+        2.  Provide brief, constructive feedback on the provided answers.
+        3.  On a new line at the very end, you MUST provide the user's knowledge level. The knowledge level MUST be one of these exact three options: [Beginner, Intermediate, Advanced].
+
+        **EXAMPLE of a PERFECT response:**
+        Feedback:
+        - Question 1: Your answer is correct. This shows a good understanding of the core concept.
+        - Question 2: This question was skipped. It's important to attempt all questions to get a full assessment.
+
+        Knowledge Level: Beginner
+        """
     )
     return (evaluation_prompt | llm | StrOutputParser()).invoke({"questions": questions, "answers": answers})
-
 def generate_learning_plan(topic, knowledge_level):
     plan_prompt = ChatPromptTemplate.from_template(
         "Create a 3-module learning plan for a {knowledge_level} user on {topic}. For each module, provide a 'Module' title, 'Description', and a 'Search Query'."
@@ -238,6 +263,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
 
