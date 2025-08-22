@@ -112,16 +112,42 @@ def generate_learning_plan(topic, knowledge_level):
     return plan_chain.invoke({"topic": topic, "knowledge_level": knowledge_level})
 
 def generate_module_quiz(module_title, module_description):
-    """Generates a short quiz for a specific learning module."""
+    """Generates a 3-MCQ quiz for a module and provides the answers in a parseable format."""
     quiz_prompt = ChatPromptTemplate.from_template(
         """
-        You are an AI Learning Tutor. Create a short, 2-question quiz to test understanding of a learning module.
-        The module is: Title: {module_title} ; Description: {module_description}
-        Generate two questions: 1. A multiple-choice question. 2. A short-answer question. Format the output clearly.
+        You are an AI Tutor. Create a quiz with exactly 3 multiple-choice questions for the learning module below.
+        Module Title: {module_title}
+        Module Description: {module_description}
+
+        **RULES:**
+        1.  Create exactly 3 multiple-choice questions.
+        2.  Each question MUST have four options labeled a), b), c), and d).
+        3.  After the questions, on a new line, you MUST provide the correct answers in the format:
+        Correct Answers: [ans1, ans2, ans3]
+        
+        **EXAMPLE:**
+        1. Multiple Choice: What is the capital of France?
+           a) Berlin
+           b) Madrid
+           c) Paris
+           d) Rome
+        
+        2. Multiple Choice: Which is a prime number?
+           a) 4
+           b) 7
+           c) 9
+           d) 12
+
+        3. Multiple Choice: What is H2O?
+           a) Salt
+           b) Sugar
+           c) Water
+           d) Air
+
+        Correct Answers: c, b, c
         """
     )
-    quiz_chain = quiz_prompt | llm | StrOutputParser()
-    return quiz_chain.invoke({"module_title": module_title, "module_description": module_description})
+    return (quiz_prompt | llm | StrOutputParser()).invoke({"module_title": module_title, "module_description": module_description})
 
 # ==============================================================================
 # --- 5. STREAMLIT APP LAYOUT AND LOGIC ---
@@ -262,6 +288,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
 
