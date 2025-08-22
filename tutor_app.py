@@ -118,12 +118,16 @@ def evaluate_answers(questions, answers):
     return (evaluation_prompt | llm | StrOutputParser()).invoke({"questions": questions, "answers": answers})
     
 def generate_learning_plan(topic, knowledge_level):
+    """Generates a personalized learning plan with searchable queries."""
+    # FIX: Removed the incorrect single quotes around the variables
     plan_prompt = ChatPromptTemplate.from_template(
         "Create a 3-module learning plan for a {knowledge_level} user on {topic}. For each module, provide a 'Module' title, 'Description', and a 'Search Query'."
     )
     return (plan_prompt | llm | StrOutputParser()).invoke({"topic": topic, "knowledge_level": knowledge_level})
 
 def generate_module_quiz(module_title, module_description):
+    """Generates a quiz using a structured Pydantic parser for reliability."""
+    # NOTE: Your version of this function was already correct.
     quiz_prompt = ChatPromptTemplate.from_template(
         "Create a quiz with exactly 3 MCQs for the module: '{module_title}' - {module_description}. Each question needs four options. {format_instructions}",
         partial_variables={"format_instructions": quiz_parser.get_format_instructions()}
@@ -269,6 +273,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
 
