@@ -174,7 +174,6 @@ if st.session_state.stage == 'assessment_answering':
 
 if st.session_state.stage == 'plan_display':
     st.subheader("Here is your evaluation:")
-    
     try:
         feedback_text = st.session_state.evaluation.split("Knowledge Level")[0]
         with st.expander("Click to see detailed feedback"):
@@ -186,10 +185,7 @@ if st.session_state.stage == 'plan_display':
                 knowledge_level = line.split(':')[-1].strip()
                 break
         st.success(f"Based on your answers, your knowledge level is: **{knowledge_level}**")
-    except Exception as e:
-        st.error(f"Could not parse evaluation: {e}")
 
-    try:
         total_score, total_possible = 0, 0
         for i in range(3):
             if f'quiz_score_for_module_{i}' in st.session_state:
@@ -234,20 +230,13 @@ if st.session_state.stage == 'plan_display':
                             st.session_state[f'quiz_for_module_{i}'] = quiz_object
                     
                     if f'quiz_for_module_{i}' in st.session_state:
-                        # --- THIS ENTIRE SECTION IS NOW CORRECTLY INDENTED ---
                         quiz: Quiz = st.session_state[f'quiz_for_module_{i}']
                         
                         with st.form(key=f'quiz_form_{i}'):
                             user_answers = []
                             for q_idx, question in enumerate(quiz.questions):
                                 st.markdown(f"**Question {q_idx+1}:** {question.question_text}")
-                                user_choice = st.radio(
-                                    "Select an answer:", 
-                                    question.options, 
-                                    key=f"mc_{i}_{q_idx}", 
-                                    index=None, 
-                                    label_visibility="collapsed"
-                                )
+                                user_choice = st.radio("Select an answer:", question.options, key=f"mc_{i}_{q_idx}", index=None, label_visibility="collapsed")
                                 user_answers.append(user_choice)
                             
                             submitted = st.form_submit_button("Submit Quiz")
@@ -270,17 +259,9 @@ if st.session_state.stage == 'plan_display':
                                 st.session_state[f'quiz_score_for_module_{i}'] = (score, 3)
                                 st.rerun()
 
-                        if f'quiz_feedback_for_module_{i}' in st.session_state:
-                            st.info(st.session_state[f'quiz_feedback_for_module_{i}'])
+                    if f'quiz_feedback_for_module_{i}' in st.session_state:
+                        st.info(st.session_state[f'quiz_feedback_for_module_{i}'])
 
     except Exception as e:
-        st.error(f"An error occurred. Please try again. Error: {e}")
-
-
-
-
-
-
-
-
+        st.error(f"An error occurred during the planning stage. Please try again. Error: {e}")
 
