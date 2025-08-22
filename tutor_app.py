@@ -75,17 +75,23 @@ quiz_parser = PydanticOutputParser(pydantic_object=Quiz)
 
 # --- 4. CORE LOGIC FUNCTIONS ---
 def generate_initial_assessment(topic):
+    """Generates a 3-question diagnostic quiz for a given topic WITHOUT answers."""
     assessment_prompt = ChatPromptTemplate.from_template(
-        "Generate a 3-question diagnostic quiz for {topic}."
+        """
+        You are an AI Tutor. Your task is to generate a short diagnostic quiz with exactly 3 questions for the topic: '{topic}'.
+        The questions should range in difficulty from easy to hard.
+
+        **CRITICAL INSTRUCTION: Do NOT include an answer key or the correct answers in your response.
+        Only provide the numbered questions.**
+        """
     )
     return (assessment_prompt | llm | StrOutputParser()).invoke({"topic": topic})
-
+    
 def evaluate_answers(questions, answers):
-    """Evaluates user's answers and determines their knowledge level with a robust prompt."""
+    """Evaluates user's answers and determines their knowledge level using a rubric."""
     evaluation_prompt = ChatPromptTemplate.from_template(
         """
-        You are an expert AI Tutor. Your task is to evaluate a user's answers to a diagnostic quiz.
-        Be precise and objective.
+        You are an expert AI Tutor. Your task is to evaluate a user's answers to a diagnostic quiz and assign a knowledge level.
 
         **Quiz Questions:**
         ---
@@ -97,20 +103,20 @@ def evaluate_answers(questions, answers):
         {answers}
         ---
 
-        **Instructions:**
-        1.  Carefully analyze the user's answers. Acknowledge and state clearly if any questions were skipped.
-        2.  Provide brief, constructive feedback on the provided answers.
-        3.  On a new line at the very end, you MUST provide the user's knowledge level. The knowledge level MUST be one of these exact three options: [Beginner, Intermediate, Advanced].
+        **Evaluation Rubric:**
+        - **Beginner:** The user answered first question correctly.
+        - **Intermediate:** The user answered first and second question correctly, but their explanations are simple and lack deep nuance or examples.
+        - **Advanced:** The user answered all questions correctly.
 
-        **EXAMPLE of a PERFECT response:**
-        Feedback:
-        - Question 1: Your answer is correct. This shows a good understanding of the core concept.
-        - Question 2: This question was skipped. It's important to attempt all questions to get a full assessment.
-
-        Knowledge Level: Beginner
+        **Your Instructions:**
+        1.  First, provide brief, constructive feedback on the user's answers, acknowledging any skipped questions.
+        2.  Then, using the rubric above, determine the user's knowledge level.
+        3.  On a new line at the very end, you MUST provide the level in the format:
+        Knowledge Level: [The level you determined]
         """
     )
     return (evaluation_prompt | llm | StrOutputParser()).invoke({"questions": questions, "answers": answers})
+    
 def generate_learning_plan(topic, knowledge_level):
     plan_prompt = ChatPromptTemplate.from_template(
         "Create a 3-module learning plan for a {knowledge_level} user on {topic}. For each module, provide a 'Module' title, 'Description', and a 'Search Query'."
@@ -263,6 +269,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
 
