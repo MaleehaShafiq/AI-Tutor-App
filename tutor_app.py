@@ -75,64 +75,53 @@ quiz_parser = PydanticOutputParser(pydantic_object=Quiz)
 
 # --- 4. CORE LOGIC FUNCTIONS ---
 def generate_initial_assessment(topic):
-    """Generates a 3-question diagnostic quiz for a given topic WITHOUT answers."""
+    """Generates a 3-question diagnostic quiz for a given topic."""
     assessment_prompt = ChatPromptTemplate.from_template(
-        """
-        You are an AI Tutor. Your task is to generate a short diagnostic quiz with exactly 3 questions for the topic: '{topic}'.
-        The questions should range in difficulty from easy to hard.
-
-        **CRITICAL INSTRUCTION: Do NOT include an answer key or the correct answers in your response.
-        Only provide the numbered questions.**
-        """
+        "You are a friendly AI Tutor. Generate a 3-question diagnostic quiz for the topic '{topic}', with questions ranging from easy to hard."
     )
-    return (assessment_prompt | llm | StrOutputParser()).invoke({"topic": topic})
-    
+    assessment_chain = assessment_prompt | llm | StrOutputParser()
+    return assessment_chain.invoke({"topic": topic})
+
 def evaluate_answers(questions, answers):
-    """Evaluates user's answers and determines their knowledge level using a rubric."""
+    """Evaluates user's answers and determines their knowledge level."""
     evaluation_prompt = ChatPromptTemplate.from_template(
         """
-        You are an expert AI Tutor. Your task is to evaluate a user's answers to a diagnostic quiz and assign a knowledge level.
-
-        **Quiz Questions:**
-        ---
-        {questions}
-        ---
-
-        **User's Submitted Answers:**
-        ---
-        {answers}
-        ---
-
-        **Evaluation Rubric:**
-        - **Beginner:** The user answered first question correctly.
-        - **Intermediate:** The user answered first and second question correctly, but their explanations are simple and lack deep nuance or examples.
-        - **Advanced:** The user answered all questions correctly.
-
-        **Your Instructions:**
-        1.  First, provide brief, constructive feedback on the user's answers, acknowledging any skipped questions.
-        2.  Then, using the rubric above, determine the user's knowledge level.
-        3.  On a new line at the very end, you MUST provide the level in the format:
-        Knowledge Level: [The level you determined]
+        You are an expert AI Tutor. Evaluate the user's answers to the following quiz.
+        Quiz Questions: --- {questions} --- ; User's Answers: --- {answers} ---
+        Based on the answers, provide brief, constructive feedback. Acknowledge any skipped questions.
+        Then, determine the user's overall knowledge level as one of these exact three options: [Beginner, Intermediate, Advanced].
+        Structure your output with a "Feedback" section and end with a "Knowledge Level" section.
         """
     )
-    return (evaluation_prompt | llm | StrOutputParser()).invoke({"questions": questions, "answers": answers})
-    
+    evaluation_chain = evaluation_prompt | llm | StrOutputParser()
+    return evaluation_chain.invoke({"questions": questions, "answers": answers})
+
 def generate_learning_plan(topic, knowledge_level):
     """Generates a personalized learning plan with searchable queries."""
-    # FIX: Removed the incorrect single quotes around the variables
     plan_prompt = ChatPromptTemplate.from_template(
-        "Create a 3-module learning plan for a {knowledge_level} user on {topic}. For each module, provide a 'Module' title, 'Description', and a 'Search Query'."
+        """
+        You are an AI curriculum designer. Create a personalized learning plan for a user.
+        Topic: {topic} ; User's Assessed Level: {knowledge_level}
+        Create a step-by-step learning plan with 3 concise modules.
+        For each module, provide: A clear "Module" title, a brief 1-sentence "Description", and a simple "Search Query".
+        Format each module exactly like this:
+        Module: [Module Title]\nDescription: [Module Description]\nSearch Query: [Effective Search Query]
+        """
     )
-    return (plan_prompt | llm | StrOutputParser()).invoke({"topic": topic, "knowledge_level": knowledge_level})
+    plan_chain = plan_prompt | llm | StrOutputParser()
+    return plan_chain.invoke({"topic": topic, "knowledge_level": knowledge_level})
 
 def generate_module_quiz(module_title, module_description):
-    """Generates a quiz using a structured Pydantic parser for reliability."""
-    # NOTE: Your version of this function was already correct.
+    """Generates a short quiz for a specific learning module."""
     quiz_prompt = ChatPromptTemplate.from_template(
-        "Create a quiz with exactly 3 MCQs for the module: '{module_title}' - {module_description}. Each question needs four options. {format_instructions}",
-        partial_variables={"format_instructions": quiz_parser.get_format_instructions()}
+        """
+        You are an AI Learning Tutor. Create a short, 2-question quiz to test understanding of a learning module.
+        The module is: Title: {module_title} ; Description: {module_description}
+        Generate two questions: 1. A multiple-choice question. 2. A short-answer question. Format the output clearly.
+        """
     )
-    return (quiz_prompt | llm | quiz_parser).invoke({"module_title": module_title, "module_description": module_description})
+    quiz_chain = quiz_prompt | llm | StrOutputParser()
+    return quiz_chain.invoke({"module_title": module_title, "module_description": module_description})
 
 # ==============================================================================
 # --- 5. STREAMLIT APP LAYOUT AND LOGIC ---
@@ -273,6 +262,7 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
+
 
 
 
