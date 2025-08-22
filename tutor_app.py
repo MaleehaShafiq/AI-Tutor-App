@@ -1,10 +1,6 @@
 # ==============================================================================
 #                      Personalized AI Learning Tutor
 # ==============================================================================
-# Filename: tutor_app.py
-# Final Version with Styling, Robust Parsing, and Structured Quizzes
-# ==============================================================================
-
 import streamlit as st
 import os
 import re
@@ -16,7 +12,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from langchain.output_parsers import PydanticOutputParser
 
-# --- Custom CSS for Styling ---
+# Custom CSS Styling
 st.markdown("""
 <style>
     h1 {
@@ -39,10 +35,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. PAGE CONFIGURATION ---
+# Page Configuration
 st.set_page_config(page_title="Personalized AI Learning Tutor", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. API KEY SETUP ---
+# API Key Setup
 try:
     os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
     os.environ["TAVILY_API_KEY"] = st.secrets["TAVILY_API_KEY"]
@@ -50,7 +46,7 @@ except (FileNotFoundError, KeyError):
     st.error("Secrets file not found or keys are missing. Please create a .streamlit/secrets.toml file for local development.")
     st.stop()
 
-# --- 3. AI & TOOL INITIALIZATION ---
+# llm and search tool initialization
 @st.cache_resource
 def get_llm():
     return ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.7)
@@ -62,7 +58,7 @@ def get_search_tool():
 llm = get_llm()
 search_tool = get_search_tool()
 
-# --- Pydantic Models for Structured Output ---
+# Pydantic Model for Structured Output
 class QuizQuestion(BaseModel):
     question_text: str = Field(description="The text of the multiple-choice question.")
     options: List[str] = Field(description="A list of exactly four options for the question.")
@@ -73,7 +69,7 @@ class Quiz(BaseModel):
 
 quiz_parser = PydanticOutputParser(pydantic_object=Quiz)
 
-# --- 4. CORE LOGIC FUNCTIONS ---
+# Core Logic
 def generate_initial_assessment(topic):
     """Generates a 3-question diagnostic quiz for a given topic."""
     assessment_prompt = ChatPromptTemplate.from_template(
@@ -128,12 +124,11 @@ def generate_module_quiz(module_title, module_description):
         """,
         partial_variables={"format_instructions": quiz_parser.get_format_instructions()}
     )
-    # The key change is using quiz_parser at the end of the chain
     return (quiz_prompt | llm | quiz_parser).invoke({"module_title": module_title, "module_description": module_description})
     
 
 # ==============================================================================
-# --- 5. STREAMLIT APP LAYOUT AND LOGIC ---
+#                      Streamlit App logic and Layout
 # ==============================================================================
 st.title("🎓 Personalized AI Learning Tutor")
 st.markdown("Welcome! I'm here to help you master any topic. Let's start by figuring out what you already know.")
@@ -264,5 +259,4 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred during the planning stage. Please try again. Error: {e}")
-
-
+# =================================================================================================================================================================
