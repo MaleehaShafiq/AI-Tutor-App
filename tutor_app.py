@@ -130,7 +130,7 @@ def generate_module_quiz(module_title, module_description):
     )
     # The key change is using quiz_parser at the end of the chain
     return (quiz_prompt | llm | quiz_parser).invoke({"module_title": module_title, "module_description": module_description})
-    )
+    
 
 # ==============================================================================
 # --- 5. STREAMLIT APP LAYOUT AND LOGIC ---
@@ -264,4 +264,5 @@ if st.session_state.stage == 'plan_display':
 
     except Exception as e:
         st.error(f"An error occurred during the planning stage. Please try again. Error: {e}")
+
 
