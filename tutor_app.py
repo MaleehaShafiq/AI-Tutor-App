@@ -190,7 +190,6 @@ if st.session_state.stage == 'assessment_answering':
             st.rerun()
 
 if st.session_state.stage == 'plan_display':
-    st.markdown('<div class="tutor-response pop-in-animation">', unsafe_allow_html=True)
     st.subheader("Here is your evaluation:")
     
     try:
@@ -206,9 +205,7 @@ if st.session_state.stage == 'plan_display':
         st.success(f"Based on your answers, your knowledge level is: **{knowledge_level}**")
     except Exception as e:
         st.error(f"Could not parse evaluation: {e}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- THIS IS THE MISSING PART THAT IS NOW ADDED BACK IN ---
     try:
         total_score, total_possible = 0, 0
         for i in range(3):
@@ -250,45 +247,61 @@ if st.session_state.stage == 'plan_display':
                     st.divider()
                     if st.button(f"Quiz me on Module {i+1}", key=f"quiz_btn_{i}"):
                         with st.spinner(f"Generating a quiz for {title}..."):
-                            quiz_object = generate_module_quiz(title, description)
-                            st.session_state[f'quiz_for_module_{i}'] = quiz_object
+                            quiz_text = generate_module_quiz(title, description)
+                            st.session_state[f'quiz_for_module_{i}'] = quiz_text
                     
                     if f'quiz_for_module_{i}' in st.session_state:
-                        quiz: Quiz = st.session_state[f'quiz_for_module_{i}']
+                        quiz_text = st.session_state[f'quiz_for_module_{i}']
                         
-                        with st.form(key=f'quiz_form_{i}'):
-                            user_answers = []
-                            for q_idx, question in enumerate(quiz.questions):
-                                st.markdown(f"**Question {q_idx+1}:** {question.question_text}")
-                                user_choice = st.radio("Select an answer:", question.options, key=f"mc_{i}_{q_idx}", index=None, label_visibility="collapsed")
-                                user_answers.append(user_choice)
+                        try:
+                            quiz_parts = quiz_text.split("Correct Answers:")
+                            quiz_questions_text = quiz_parts[0].strip()
+                            correct_answers_str = quiz_parts[1].strip()
+                            correct_answers = [ans.strip() for ans in correct_answers_str.split(',')]
                             
-                            submitted = st.form_submit_button("Submit Quiz")
+                            st.markdown("---")
+                            individual_questions = re.split(r'\n*\d+\.\s*Multiple Choice:', quiz_questions_text)[1:]
+                            
+                            if len(individual_questions) < 3:
+                                raise ValueError("AI did not generate 3 questions in the expected format.")
 
-                            if submitted:
-                                score = 0
-                                feedback_list = ["**Quiz Results:**"]
-                                for q_idx, question in enumerate(quiz.questions):
-                                    user_ans = user_answers[q_idx]
-                                    correct_ans_index = ord(question.correct_answer.lower()) - ord('a')
-                                    correct_ans_text = question.options[correct_ans_index]
-                                    
-                                    if user_ans == correct_ans_text:
-                                        score += 1
-                                        feedback_list.append(f"✅ **Question {q_idx+1}: Correct!**")
-                                    else:
-                                        feedback_list.append(f"❌ **Question {q_idx+1}: Incorrect.** The correct answer was: **{correct_ans_text}**")
+                            with st.form(key=f'quiz_form_{i}'):
+                                user_answers = []
+                                for q_idx, q_text in enumerate(individual_questions):
+                                    st.markdown(f"**Question {q_idx+1}:** {q_text.split('a)')[0].strip()}")
+                                    options = re.findall(r'^[a-d]\) (.*)', q_text, re.MULTILINE)
+                                    if options:
+                                        user_choice = st.radio("Select an answer:", options, key=f"mc_{i}_{q_idx}", index=None, label_visibility="collapsed")
+                                        user_answers.append(user_choice)
                                 
-                                st.session_state[f'quiz_feedback_for_module_{i}'] = "\n\n".join(feedback_list)
-                                st.session_state[f'quiz_score_for_module_{i}'] = (score, 3)
-                                st.rerun()
+                                submitted = st.form_submit_button("Submit Quiz")
 
+                                if submitted:
+                                    score = 0
+                                    feedback_list = ["**Quiz Results:**"]
+                                    for q_idx, user_ans in enumerate(user_answers):
+                                        correct_ans_letter = correct_answers[q_idx]
+                                        # Find the full text of the correct answer
+                                        options_for_question = re.findall(r'^[a-d]\) (.*)', individual_questions[q_idx], re.MULTILINE)
+                                        correct_ans_text = options_for_question[ord(correct_ans_letter) - ord('a')]
+
+                                        if user_ans == correct_ans_text:
+                                            score += 1
+                                            feedback_list.append(f"✅ **Question {q_idx+1}: Correct!**")
+                                        else:
+                                            feedback_list.append(f"❌ **Question {q_idx+1}: Incorrect.** You chose '{user_ans}'. The correct answer was: **'{correct_ans_text}'**")
+                                    
+                                    st.session_state[f'quiz_feedback_for_module_{i}'] = "\n\n".join(feedback_list)
+                                    st.session_state[f'quiz_score_for_module_{i}'] = (score, 3)
+                                    st.rerun()
+                        except (IndexError, ValueError) as e:
+                            st.error("Sorry, the AI generated an invalid quiz format. Please click the 'Quiz me' button again to retry.")
+                    
                     if f'quiz_feedback_for_module_{i}' in st.session_state:
                         st.info(st.session_state[f'quiz_feedback_for_module_{i}'])
 
     except Exception as e:
         st.error(f"An error occurred. Please try again. Error: {e}")
-
 
 
 
