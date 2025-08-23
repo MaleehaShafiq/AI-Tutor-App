@@ -1,6 +1,6 @@
 # 🎓 My Personalized AI Learning Tutor
 
-![AI Tutor Demo](https://i.imgur.com/YOUR_GIF_URL_HERE.gif)
+![Image](https://github.com/user-attachments/assets/0753fdb7-9e27-4f06-b7e2-5d69b1fbc4fb)
 
 Welcome! I'm excited to share my AI Learning Tutor, a project I built to explore the power of generative AI in creating adaptive and personalized educational experiences.
 
