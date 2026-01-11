@@ -11,7 +11,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import (
     StrOutputParser,
-    PydanticOutputParser,
+    PydanticOutputParser,)
 
 from langchain_community.tools.tavily_search import TavilySearchResults
 
@@ -268,5 +268,6 @@ if st.session_state.stage == 'plan_display':
     except Exception as e:
         st.error(f"An error occurred during the planning stage. Please try again. Error: {e}")
 # =================================================================================================================================================================
+
 
 
