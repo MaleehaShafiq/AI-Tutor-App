@@ -1,5 +1,11 @@
 streamlit
+
+langchain>=0.2.0
+langchain-core
+langchain-community
+
 langchain-google-genai
 langchain-tavily
-langchain-community
+
 pydantic
+tavily-python
