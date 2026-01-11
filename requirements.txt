@@ -6,6 +6,6 @@ langchain-community
 
 langchain-google-genai
 langchain-tavily
+tavily-python
 
 pydantic
-tavily-python
